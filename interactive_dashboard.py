@@ -21,7 +21,7 @@ st.set_page_config(
 # Page title and information
 st.title("📊 Singapore Employment Dashboard (2000-2024)")
 st.markdown("""
-> ℹ️ **Explore Singapore's employment trends (2000-2024)** across industries, education levels, and demographics  
+> **Explore Singapore's employment trends (2000-2024)** across industries, education levels, and demographics  
 > to uncover which career paths offer the most promising and resilient prospects for students.
 """)
 st.caption("Data Source: SingStat")
@@ -90,6 +90,9 @@ if "All Ages" not in selected_age:
 if "All Occupations" not in selected_jobs:
     filtered_data = filtered_data[filtered_data["Occupation"].isin(selected_jobs)]
 
+# Give error message, because we spot there's an error if we didn't set any filter in the dashboard
+if filtered_data.empty: st.info("Please choose your filters."); st.stop()
+
 # Convert selected year columns to numbers
 selected_year_cols = []
 
@@ -100,6 +103,9 @@ for year in selected_year_cols:
     if year in filtered_data.columns:
         filtered_data[year] = pd.to_numeric(filtered_data[year], errors="coerce").fillna(0)
 
+# Give error message, because we spot there's an error if we didn't set any filter in the dashboard
+if not selected_year_cols: st.info("Please set your filters."); st.stop()
+
 # Get latest, previous, and two-years-ago columns
 latest_col = str(year_max)
 prev_col = str(year_max - 1)
@@ -107,12 +113,12 @@ prev2_col = str(year_max - 2)
 
 # TAB 1: Overview
 with tab1:
-    # Find the previous years available in the data
+    # Get the previous years available in the data
     latest_col = str(year_max)
     prev_col = None
     prev2_col = None
 
-    # Find the index of the latest selected year in the sorted list of all available years
+    # Get the index of the latest selected year in the sorted list of all available years
     if year_max in year_list:
         latest_year_index = year_list.index(year_max)
         
@@ -156,8 +162,7 @@ with tab1:
     with col1:
         st.metric(
             label=f"Total Growth ({year_min} to {year_max})",
-            value=f"{period_growth:.2f}%"
-        )
+            value=f"{period_growth:.2f}%")
         st.caption("For the entire selected period")
         
     with col2:
@@ -169,27 +174,23 @@ with tab1:
             label=f"Total Employment ({latest_col}) - (in Thousands)",
             value=f"{numeric_total:.1f}",
             # Only show the delta if there is a previous year to compare 
-            delta=f"{growth:.2f}%" if prev_col else None 
-        )
+            delta=f"{growth:.2f}%" if prev_col else None)
         # Update the caption to show the actual year being compared
         st.caption(f"Year-over-year vs. {prev_col}" if prev_col else "No previous year for comparison")
         
     with col3:
         st.metric(
-            # Show "N/A" if growth can't be calculated
             label=f"YoY Growth Rate ({latest_col})",
-            value=f"{growth:.2f}%" if prev_col else "N/A",
+            value=f"{growth:.2f}%" if prev_col else "N/A", 
             # Only show the delta if two previous years exist
-            delta=f"{change:.2f} pp" if prev2_col else None
-        )
-        # Update the caption to reflect what's being compared
+            delta=f"{change:.2f} pp" if prev2_col else None)
+        # Update the streamlit caption to reflect what's being compared
         st.caption(f"Growth momentum vs. {prev_col}" if prev2_col else "Insufficient data for momentum")
 
     with col4:
         st.metric(
             label=f"Female Employment ({latest_col})",
-            value=f"{female_ratio:.1f}%"
-        )
+            value=f"{female_ratio:.1f}%")
         st.caption(f"{female_sum:,.0f} Female / {male_sum:,.0f} Male")
 
     st.divider()
@@ -198,7 +199,6 @@ with tab1:
 
     with col1:
         st.subheader("Employment Trend")
-        
         # Create "Overall Employment Trend" chart
         if "All Ages" in selected_age and "All Occupations" in selected_jobs and "All" in selected_gender:
             # Prepare data for each trace
@@ -309,7 +309,6 @@ with tab2:
     # Create Employment Trend chart (Overall & By Gender)
     st.subheader(f"Employment Trend (Overall & By Gender) ({year_min} - {year_max})")
 
-    # This chart's logic is correct and remains unchanged.
     genders_to_plot = ["All"]
     if "All" in selected_gender:
         genders_to_plot.extend(["Male", "Female"])
@@ -338,36 +337,30 @@ with tab2:
     fig_area.update_traces(selector={'name': 'Total'}, fill='tozeroy')
     st.plotly_chart(fig_area, use_container_width=True)
     st.divider()
-
-    # --- Start of Corrected Logic for Age Charts ---
     
-    # Use the main 'filtered_data' which already respects the year, gender, and age filters from the sidebar.
+    # Use the main 'filtered_data' which already connect to the year, gender, and age filters from the sidebar.
     age_chart_df = filtered_data.copy()
 
-    # Now, intelligently handle the Occupation filter to prevent double-counting.
-    # If the user has "All Occupations" selected, we must explicitly use *only* those pre-aggregated rows.
+    # If the user select "All Occupations", we must  use only those pre-aggregated rows.
     if "All Occupations" in selected_jobs:
         age_chart_df = age_chart_df[age_chart_df['Occupation'] == 'All Occupations']
     
     # If the user selected specific occupations, 'filtered_data' is already correct,
     # so we don't need to do anything else. The sum will be calculated correctly.
-
-    # Finally, for the breakdown charts, we exclude the "All Ages" summary row.
     age_filtered = age_chart_df[age_chart_df["Age Group"] != "All Ages"]
-    # --- End of Corrected Logic ---
 
     # Create Employment by Age Group bar chart
     st.subheader(f"Employment by Age Group ({year_max})")
     
-    # Group by Age Group and sum. This will now be correct for both "All" and specific occupations.
+    # Group by Age Group and sum
     age_snapshot = age_filtered.groupby("Age Group")[latest_col].sum().reset_index()
     age_snapshot.columns = ['Age Group', 'Employment Count']
 
+    # Set age group order from youngest to older year
     age_order = [
         "15-19 Years Old", "20-24 Years Old", "25-29 Years Old", "30-34 Years Old", 
         "35-39 Years Old", "40-44 Years Old", "45-49 Years Old", "50-54 Years Old", 
-        "55-59 Years Old", "60-64 Years Old", "65 Years & Over"
-    ]
+        "55-59 Years Old", "60-64 Years Old", "65 Years & Over" ]
     age_snapshot['Age Group'] = pd.Categorical(age_snapshot['Age Group'], categories=age_order, ordered=True)
     age_snapshot = age_snapshot.sort_values('Age Group')
 
@@ -378,10 +371,9 @@ with tab2:
 
     st.divider()
 
-    # Create Employment Trends by Age Group line chart
+    # Create Employment Trends by Age Group using line chart
     st.subheader(f"Employment Trends by Age Group ({year_min}–{year_max})")
     
-    # This chart uses the same corrected 'age_filtered' data
     age_trend = age_filtered.groupby("Age Group")[selected_year_cols].sum().T
     age_trend.index = age_trend.index.astype(int)
     
@@ -397,14 +389,15 @@ with tab3:
 
     # Create a filtered copy for this tab using the main year slider
     tab3_filtered = df_io[(df_io['year'] >= year_min) & (df_io['year'] <= year_max)].copy()
-    
+    # Give error message, because we spot there's an error if we didn't set any filter in the dashboard
+    if tab3_filtered.empty: st.info("Please select your filters."); st.stop()
+
     # Filter by occupation if specific occupations are selected
     if "All Occupations" not in selected_jobs:
         tab3_filtered = tab3_filtered[tab3_filtered["occupation"].isin(selected_jobs)]
 
     # Create Bar Chart of Employment Volume 
     st.subheader(f"Employment Volume by Industry in {year_min}-{year_max}")
-    
     
     # Prepare data for the latest year, EXCLUDING the aggregate industries
     industries_to_drop = ["All Industries", "Services"]
@@ -424,8 +417,7 @@ with tab3:
         x="industry", 
         y="employment",
         color="industry", 
-        text_auto='.2s'
-    )
+        text_auto='.2s')
     fig1.update_traces(textposition="outside", cliponaxis=False)
     fig1.update_layout(
         xaxis_title=None,
@@ -433,8 +425,7 @@ with tab3:
         uniformtext_minsize=8, 
         uniformtext_mode='hide',
         xaxis={'categoryorder':'total descending'},
-        showlegend=False  
-    )
+        showlegend=False)
     st.plotly_chart(fig1, use_container_width=True)
     st.divider()
 
@@ -455,17 +446,15 @@ with tab3:
         x="year", 
         y="employment", 
         color="industry",
-        markers=True
-    )
+        markers=True)
     fig2.update_layout(
         xaxis_title="Year",
         yaxis_title="Employment (in Thousands)",
-        legend_title_text="Industry"
-    )
+        legend_title_text="Industry")
     st.plotly_chart(fig2, use_container_width=True)
     st.divider()
     
-    # Create Stacked Bar Chart of Occupation distribution
+    # Create Stacked Bar Chart for Occupation distribution
     st.subheader(f"Occupation Distribution in Each Industry in {year_max}")
 
     # Filter for the latest year and exclude aggregate occupation categories
@@ -518,11 +507,10 @@ with tab4:
         id_vars=["Occupation"], 
         value_vars=selected_year_cols,
         var_name="Year", 
-        value_name="Employment"
-    )
+        value_name="Employment")
     occupation_melted["Year"] = occupation_melted["Year"].astype(int)
 
-    # Sum up employment values to get the final trend data
+    # Calculate the sum of employment values to get the trend data
     final_trend = occupation_melted.groupby(["Year", "Occupation"])["Employment"].sum().reset_index()
     
     # Create the line chart
@@ -530,8 +518,8 @@ with tab4:
     st.plotly_chart(fig_trend, use_container_width=True)
     st.divider()
 
-    # Chart 2: Top 5 Growing & Declining Occupations
-    st.subheader(f"Top 5 Growing & Declining Occupations ({year_min}–{year_max})")
+    # Chart 2: Top 4 Growing & Declining Occupations
+    st.subheader(f"Top 4 Growing & Declining Occupations ({year_min}–{year_max})")
 
     # Define the start and end years for the growth calculation
     start_year_for_growth = str(year_min)
@@ -539,7 +527,7 @@ with tab4:
     # Check if the selected time range is valid for calculating growth (more than 1 year)
     if start_year_for_growth in filtered_data.columns and end_year in filtered_data.columns and start_year_for_growth != end_year:
         
-        # Isolate occupations, excluding the total
+        # Excluding the total ("All"( in occupation data
         growth_base = filtered_data[filtered_data["Occupation"] != "All Occupations"]
         
         # Group by occupation and sum the employment for start and end years
@@ -551,12 +539,11 @@ with tab4:
         # Calculate the growth percentage
         growth_summary["Growth %"] = (
             (growth_summary[end_year] - growth_summary[start_year_for_growth]) /
-             growth_summary[start_year_for_growth]
-        ) * 100
+             growth_summary[start_year_for_growth]) * 100
         
-        # Get the top 5 and least 5
-        top_grow = growth_summary.nlargest(5, "Growth %").reset_index()
-        top_decl = growth_summary.nsmallest(5, "Growth %").reset_index()
+        # Get the top 4 and least 4
+        top_grow = growth_summary.nlargest(4, "Growth %").reset_index()
+        top_decl = growth_summary.nsmallest(4, "Growth %").reset_index()
     else:
         # If the date range is not valid, create empty dataframes to avoid errors in dashboard
         top_grow = pd.DataFrame(columns=["Occupation", "Growth %"])
@@ -565,17 +552,17 @@ with tab4:
     # Create two columns to display the charts side-by-side
     c1, c2 = st.columns(2)
     with c1:
-        fig_grow = px.bar(top_grow, x="Growth %", y="Occupation", orientation="h",
-                          text_auto='.1f', title="Top 5 Growing Occupations")
-        fig_grow.update_traces(texttemplate='%{x:.1f}%', textposition="outside")
-        fig_grow.update_layout(showlegend=False, yaxis={'categoryorder':'total ascending'})
-        st.plotly_chart(fig_grow, use_container_width=True)
+        fig_growing = px.bar(top_grow, x="Growth %", y="Occupation", orientation="h", color="Occupation", 
+                          text_auto='.1f', title="Top 4 Growing Occupations")
+        fig_growing.update_traces(texttemplate='%{x:.1f}%', textposition="outside")
+        fig_growing.update_layout(showlegend=False, yaxis={'categoryorder':'total ascending'})
+        st.plotly_chart(fig_growing, use_container_width=True)
     with c2:
-        fig_decl = px.bar(top_decl, x="Growth %", y="Occupation", orientation="h",
-                          text_auto='.1f', title="Top 5 Declining Occupations")
-        fig_decl.update_traces(texttemplate='%{x:.1f}%', textposition="outside")
-        fig_decl.update_layout(showlegend=False, yaxis={'categoryorder':'total descending'})
-        st.plotly_chart(fig_decl, use_container_width=True)
+        fig_declining = px.bar(top_decl, x="Growth %", y="Occupation", orientation="h", color="Occupation",
+                          text_auto='.1f', title="Top 4 Declining Occupations")
+        fig_declining.update_traces(texttemplate='%{x:.1f}%', textposition="outside")
+        fig_declining.update_layout(showlegend=False, yaxis={'categoryorder':'total descending'})
+        st.plotly_chart(fig_declining, use_container_width=True)
     st.divider()
 
     # Chart 3: Gender Distribution by Occupation
@@ -599,13 +586,11 @@ with tab4:
         fig_gender = px.bar(
             gender_summary, x="Share (%)", y="Occupation", color="Sex", orientation="h",
             text="Share (%)",
-            color_discrete_map={"Male": "#004C99", "Female": "#FF9999"}
-        )
+            color_discrete_map={"Male": "#004C99", "Female": "#FF9999"})
         fig_gender.update_traces(texttemplate="%{text:.1f}%", textposition="inside")
         fig_gender.update_layout(
             barmode="stack", xaxis_title="Share of Workforce", yaxis_title=None,
-            legend_title_text="Gender", yaxis={'categoryorder':'total ascending'}
-        )
+            legend_title_text="Gender", yaxis={'categoryorder':'total ascending'})
         st.plotly_chart(fig_gender, use_container_width=True)
     else:
         st.warning(f"No gender distribution data available for {end_year} with these filters.")
@@ -614,7 +599,7 @@ with tab4:
     # Chart 4: Job Breakdown by Age, Gender, and Occupation
     st.subheader(f"Job Breakdown by Age, Gender, and Occupation ({end_year})")
 
-    # Use the detailed, non-aggregated data from the main dataframe
+    # Use the non-aggregated data from the main dataframe
     breakdown_data = df[
         (df["Age Group"] != "All Ages") &
         (df["Sex"] != "All") &
@@ -629,7 +614,7 @@ with tab4:
     if "All Ages" not in selected_age:
         breakdown_data = breakdown_data[breakdown_data["Age Group"].isin(selected_age)]
 
-    # Proceed only if there is data left after filtering
+    # Continue only if there is data left after filtering
     if end_year in breakdown_data.columns and not breakdown_data.empty:
         # Get a sorted list of unique occupations for the chart titles
         occupations_in_order = sorted(breakdown_data["Occupation"].unique())
@@ -642,17 +627,16 @@ with tab4:
             facet_col_wrap=3,           # Show 3 charts per row
             barmode="group",
             height=300 * ((len(occupations_in_order) - 1) // 3 + 1), 
-            color_discrete_map={"Male": "navy", "Female": "lightcoral"}
-        )
+            color_discrete_map={"Male": "navy", "Female": "lightcoral"})
         
-        # Lset y-axis ranges for each chart for better visibility
+        # Set y-axis ranges for each chart for better visibility
         fig_breakdown.update_yaxes(matches=None, showticklabels=True)
         
-        # Clean up the titles for each small chart 
+        # tidy up the titles for each small chart 
         for annotation in fig_breakdown.layout.annotations:
             annotation.text = annotation.text.replace("Occupation=", "")
 
-        # Add a y-axis title only to the first chart in each row
+        # Add a y-axis title only to the first chart in each row to have a more clear chart
         fig_breakdown.update_yaxes(title_text="Employed (in Thousands)", col=1)
         fig_breakdown.update_yaxes(title_text="", col=2)
         fig_breakdown.update_yaxes(title_text="", col=3)
@@ -680,6 +664,8 @@ with tab5:
         if year >= year_min and year <= year_max:
             selected_year_cols2.append(int(year))
 
+
+    if not selected_year_cols2: st.info("Please set your filters."); st.stop()
     year_min_sal = min(selected_year_cols2)
     year_max_sal = max(selected_year_cols2)
 
@@ -718,8 +704,7 @@ with tab5:
     gap_snapshot = salary_gap[salary_gap["year"]==year_max_sal].groupby(["occupation","year"])["gap"].mean().sort_values(ascending=False).reset_index()
     gap_snapshot = gap_snapshot.rename(columns={
         "occupation": "Occupation",
-        "gap": "Monthly Income Gap"
-    })
+        "gap": "Monthly Income Gap"})
 
     fig_bar = px.bar(gap_snapshot, x='Occupation', y='Monthly Income Gap', 
                      title=f"<b>Gender Monthly Income Gap by Occupation in {year_max_sal} (Men − Women)</b>",
@@ -809,20 +794,17 @@ with tab6:
             fig_age_dist.add_trace(go.Bar(
                 x=df_age_latest["Age Group"], y=df_age_latest["Unemployment"],
                 marker_color=px.colors.sequential.Viridis, name="Unemployment Rate",
-                text=df_age_latest["Unemployment"], texttemplate='%{text:.1f}%', textposition='outside'
-            ))
+                text=df_age_latest["Unemployment"], texttemplate='%{text:.1f}%', textposition='outside'))
             # Add line trace
             fig_age_dist.add_trace(go.Scatter(
                 x=df_age_latest["Age Group"], y=df_age_latest["Unemployment"],
                 mode='lines+markers', line=dict(color='navy', width=3),
                 marker=dict(size=12, color='white', line=dict(width=2.5, color='navy')),
-                name="Trend Line"
-            ))
+                name="Trend Line"))
             fig_age_dist.update_layout(
                 title="By Age Group", xaxis_title=None,
                 yaxis_title="Unemployment Rate (%)", height=450, showlegend=False,
-                uniformtext_minsize=8, uniformtext_mode='hide' # Prevents text overlap
-            )
+                uniformtext_minsize=8, uniformtext_mode='hide')
             st.plotly_chart(fig_age_dist, use_container_width=True)
         else:
             st.info(f"No age group breakdown is available for {year_max}.")
