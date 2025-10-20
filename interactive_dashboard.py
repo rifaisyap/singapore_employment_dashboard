@@ -474,9 +474,7 @@ with tab3:
         x="industry", 
         y="share", 
         color="occupation",
-        labels={"share": "Share of Workforce", "industry": "Industry", "occupation": "Occupation"},
-        text=composition_data['share'].apply(lambda x: f'{x:.0%}')
-    )
+        labels={"share": "Share of Workforce", "industry": "Industry", "occupation": "Occupation"})
     fig3.update_traces(textposition='inside', insidetextanchor='middle')
     fig3.update_layout(
         height=700,
