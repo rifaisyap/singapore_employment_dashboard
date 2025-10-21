@@ -171,7 +171,7 @@ with tab1:
         numeric_total = float(grand_total_latest_year)
         
         st.metric(
-            label=f"Total Employment ({latest_col}) - (in Thousands)",
+            label=f"Total Employment (in Thousands, {latest_col})",
             value=f"{numeric_total:.1f}",
             # Only show the delta if there is a previous year to compare 
             delta=f"{growth:.2f}%" if prev_col else None)
