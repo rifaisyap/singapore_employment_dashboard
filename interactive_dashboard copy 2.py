@@ -383,62 +383,59 @@ with tab2:
 
     
 # Tab 3: Industry Performance
+# --- Tab 3: Employment by Industry ---
 with tab3:
-    st.header("Industry & Occupation Performance")
-    st.warning("Note: Gender and Age Group filters are not applicable for this section.")
-
-    # Create a filtered copy for this tab using the main year slider
-    tab3_filtered = df_io[(df_io['year'] >= year_min) & (df_io['year'] <= year_max)].copy()
-    # Give error message, because we spot there's an error if we didn't set any filter in the dashboard
-    if tab3_filtered.empty: st.info("Please select your filters."); st.stop()
-
-    # Prepare data for total employment charts before applying specific occupation filters
-    industries_to_drop = ["All Industries", "Services"]
-    total_occupation_label = "All Occupation Groups, (Total Employed Residents)"
-
-    total_employment_data_for_bar = tab3_filtered[
-        (tab3_filtered["year"] == year_max) &
-        (tab3_filtered["occupation"] == total_occupation_label) &
-        (~tab3_filtered["industry"].isin(industries_to_drop))]
-    
-    # Sort industry to shows the highest to the lowest
-    by_industry = total_employment_data_for_bar[["industry", "employment"]].sort_values(
-        by="employment", ascending=False)
-    
-    # Listing top industries for line chart
-    top_industries_for_line_chart = total_employment_data_for_bar.sort_values(
-        by="employment", ascending=False)["industry"].head(10).tolist()
-    
-    trends_data = tab3_filtered[
-        (tab3_filtered["industry"].isin(top_industries_for_line_chart)) &
-        (tab3_filtered["occupation"] == total_occupation_label)]
-    
-    # Filter by occupation if specific occupations in the filter are selected
-    if "All Occupations" not in selected_jobs:
-        tab3_filtered = tab3_filtered[tab3_filtered["occupation"].isin(selected_jobs)]
-
-    # Create Bar Chart of Employment Volume 
-    st.subheader(f"Employment Volume by Industry in {year_max}")
+    # Use the title from your image, linked to the global year filter
+    st.subheader(f"Employment Volume by Industry ({year_max})")
     st.caption("This chart shows the total number of employed residents for each industry in the latest selected year.")
-    fig1 = px.bar(
-        by_industry,
-        x="industry",
-        y="employment",
-        color="industry",
-        text = "employment",
-        text_auto='.1f')
-    fig1.update_traces(textposition="outside", cliponaxis=False)
-    fig1.update_layout(
-        xaxis_title="Employment (in Thousands)", 
-        yaxis_title=None,                        
-        uniformtext_minsize=8,
-        uniformtext_mode='hide',
-        showlegend=False,                        
-        coloraxis_showscale=True)
-    st.plotly_chart(fig1, use_container_width=True)
-    st.divider()
 
-    # Create Line Chart of Employment Trends 
+    # Define the rows to drop: "All Industries" and the "Services" sub-total
+    # This is the key step to matching your screenshot
+    industries_to_drop = ["All Industries", "Services"]
+    
+    # Filter data based on:
+    # 1. The GLOBAL year filter (year_max)
+    # 2. Hardcode the occupation to "All" (as requested)
+    # 3. Exclude the "All Industries" and "Services" total rows
+    df_chart_data = df_io[
+        (df_io['year'] == year_max) &
+        (df_io['occupation'] == "All Occupation Groups, (Total Employed Residents)") &
+        (~df_io['industry'].isin(industries_to_drop)) # Use ~isin to drop the list
+    ]
+
+    if not df_chart_data.empty:
+        # Sort ascending=True so the horizontal bar chart shows the highest value at the top
+        df_chart_data = df_chart_data.sort_values("employment", ascending=True)
+        
+        # Create the HORIZONTAL bar chart
+        fig_io_bar = px.bar(
+            df_chart_data,
+            x="employment",  # Set x to the numeric value
+            y="industry",    # Set y to the category
+            orientation='h', # Set orientation to 'h'
+            title=f"Employment Volume by Industry ({year_max})",
+            color="employment",
+            color_continuous_scale=px.colors.sequential.Viridis,
+            text_auto='.1f' # Add data labels (e.g., 336.0)
+        )
+        
+        fig_io_bar.update_layout(
+            xaxis_title="Employment (in '000s)", # Matches your image
+            yaxis_title=None, # Cleaner look
+            height=500,
+            showlegend=False,
+            coloraxis_showscale=True
+        )
+        
+        # Position the text outside the bars for clarity
+        fig_io_bar.update_traces(textposition='outside')
+        
+        st.plotly_chart(fig_io_bar, use_container_width=True)
+    else:
+        # Show a warning if no data exists for that year
+        st.warning(f"No industry data available for {year_max}.")
+
+    # Create Line Chart of Employment Trends
     st.subheader(f"Employment Trends Across Top 10 Industries ({year_min} - {year_max})")
     st.caption("This trend line shows the employment trend over the period for the top 10 industries.")
     fig2 = px.line(
@@ -446,21 +443,24 @@ with tab3:
         x="year", 
         y="employment", 
         color="industry",
-        markers=True)
+        markers=True
+    )
     fig2.update_layout(
         xaxis_title="Year",
         yaxis_title="Employment (in Thousands)",
-        legend_title_text="Industry")
+        legend_title_text="Industry"
+    )
     st.plotly_chart(fig2, use_container_width=True)
     st.divider()
     
-    # Create Stacked Bar Chart for Occupation distribution (NO CHANGES)
+    # Create Stacked Bar Chart for Occupation distribution
     st.subheader(f"Occupation Distribution in Each Industry in {year_max}")
 
     # Filter for the latest year and exclude aggregate occupation categories
     latest_year_data = tab3_filtered[
         (tab3_filtered["year"] == year_max) &
-        (~tab3_filtered["industry"].isin(industries_to_drop))]
+        (~tab3_filtered["industry"].isin(industries_to_drop))
+    ]
     occupations_to_drop = ["All Occupation Groups, (Total Employed Residents)", "Other Occupation Groups Nes"]
     composition_data = latest_year_data[~latest_year_data["occupation"].isin(occupations_to_drop)]
 
@@ -480,7 +480,8 @@ with tab3:
             y="share",
             color="occupation",
             labels={"share": "Share of Workforce", "industry": "Industry", "occupation": "Occupation"},
-            text_auto='.0%')
+            text_auto='.0%'
+        )
         fig3.update_traces(textposition='inside', insidetextanchor='middle')
         fig3.update_layout(
             height=700,
@@ -489,8 +490,10 @@ with tab3:
             yaxis_title="Share of Employment",
             yaxis_tickformat=".0%",
             legend=dict(orientation="h", yanchor="bottom", y=-0.4, xanchor="center", x=0.5),
-            xaxis={'categoryorder':'total descending'})
+            xaxis={'categoryorder':'total descending'}
+        )
         st.plotly_chart(fig3, use_container_width=True)
+
 
 # TAB 4: Occupation Performance
 with tab4:
